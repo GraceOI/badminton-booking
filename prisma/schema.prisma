@@ -10,9 +10,11 @@ datasource db {
 model User {
   id             String    @id @default(cuid())
   psuId          String    @unique
+  email          String?   @unique
   name           String
   password       String
   faceRegistered Boolean   @default(false)
+  isAdmin        Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   bookings       Booking[]

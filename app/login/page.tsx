@@ -47,8 +47,17 @@ export default function LoginPage() {
         return
       }
 
-      // Redirect to face registration if login successful
-      router.push('/face-registration')
+      // Check if user is admin
+      const response = await fetch('/api/auth/check-admin')
+      const data = await response.json()
+      
+      if (data.isAdmin) {
+        router.push('/admin')
+      } else if (!data.faceRegistered) {
+        router.push('/face-registration')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       console.error('Login error:', err)
       setError('An error occurred during login')

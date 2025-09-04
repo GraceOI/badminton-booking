@@ -157,9 +157,9 @@ export default function FaceRegistrationPage() {
             <div className="flex flex-col gap-4">
               <Button 
                 onClick={handleStartFaceRecognition}
-                className="w-full bg-psu-green text-white"
-                startIcon={<Camera />}
+                className="w-full bg-psu-green text-white flex items-center justify-center gap-2"
               >
+                <Camera className="w-4 h-4" />
                 Face Recognition
               </Button>
               <Button

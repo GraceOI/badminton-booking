@@ -17,5 +17,5 @@ async function makeAdmin(psuId) {
 }
 
 // The exact PSU ID from the database
-const psuId = "ุ6530613006";
+const psuId = "009878890";
 makeAdmin(psuId); 

@@ -93,5 +93,7 @@ export const authOptions: AuthOptions = {
     signIn: "/login",
     error: "/login",
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: true,
 }; 
+
+export { prisma };

@@ -2,19 +2,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AdminNavbar from "@/components/AdminNavbar";
-import { BookingWithUserAndCourt } from "@/types/booking";
-import { Court, TimeSlot } from "@/types/booking";
+import { BookingWithUser, Court, TimeSlot } from "@/types/booking";
 import { format } from "date-fns";
 
-export default function EditBooking({ params }: { params: { id: string } }) {
+export default function EditBookingPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { id } = params;
   
-  const [booking, setBooking] = useState<BookingWithUserAndCourt | null>(null);
+  const [booking, setBooking] = useState<BookingWithUser | null>(null);
   const [courts, setCourts] = useState<Court[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,7 +140,7 @@ export default function EditBooking({ params }: { params: { id: string } }) {
         <AdminNavbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white shadow rounded-lg p-6">
-            <p className="text-center text-gray-500">ไม่พบข้อมูลการจอง</p>
+            <p className="text-center text-gray-500">Booking not found</p>
           </div>
         </div>
       </div>

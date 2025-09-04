@@ -51,6 +51,17 @@ model Booking {
   court       Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  timeSlotId  String?
+  timeSlot    TimeSlot? @relation(fields: [timeSlotId], references: [id])
+
   @@unique([courtId, date, startTime])
   @@index([userId])
+
+
+}
+model TimeSlot {
+  id        String    @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime
+  bookings  Booking[]
 }

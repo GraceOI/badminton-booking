@@ -1,267 +1,224 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import Header from '@/components/layout/header'
-import { Button } from '@/components/ui/button'
-import { format, addDays } from 'date-fns'
-import { createBooking } from '@/lib/actions/booking-actions'
-import { getCourts } from '@/lib/actions/court-actions'
-import { Check } from 'lucide-react'
-
-interface Court {
-  id: string
-  name: string
-}
-
-interface TimeSlot {
-  id: string
-  time: string
-  available: boolean
-}
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { format, addDays, subDays } from "date-fns";
+import Navbar from "@/components/AdminNavbar";
+import { BookingSlot } from "@/types/booking";
+import BookingConfirmModal from "@/components/BookingConfirmModal";
 
 export default function BookingPage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
+  const { data: session, status } = useSession();
+  const router = useRouter();
   
-  // เพิ่มข้อมูลคอร์ทเริ่มต้น (default courts) เพื่อให้มีข้อมูลแสดงเสมอ
-  const defaultCourts: Court[] = [
-    { id: 'court-1', name: 'Court 1' },
-    { id: 'court-2', name: 'Court 2' }
-  ]
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [bookingSlots, setBookingSlots] = useState<BookingSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    courtId: string;
+    startTime: string;
+    endTime: string;
+    courtName: string;
+  } | null>(null);
   
-  const [courts, setCourts] = useState<Court[]>(defaultCourts)
-  const [selectedCourt, setSelectedCourt] = useState<string | null>(null)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [bookingComplete, setBookingComplete] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Check if user is authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
   
-  const timeSlots = [
-    '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00',
-    '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00',
-    '16:00-17:00', '17:00-18:00', '18:00-19:00', '19:00-20:00',
-    '20:00-21:00', '21:00-22:00'
-  ]
-
-  // Fetch courts from database
+  // Fetch booking slots for the selected date
   useEffect(() => {
-    async function fetchCourts() {
-      try {
-        const result = await getCourts()
-        if (result.success && result.courts && result.courts.length > 0) {
-          setCourts(result.courts)
-        } else {
-          console.log('Using default courts as no courts returned from API')
-          // ถ้า API ไม่ส่งข้อมูลกลับมา ยังคงใช้ค่าเริ่มต้น (ไม่ต้องทำอะไรเพราะเราตั้งค่าเริ่มต้นไว้แล้ว)
-        }
-      } catch (err) {
-        console.error('Error fetching courts:', err)
-        setError('Failed to load courts, using default options')
-        // ในกรณีที่เกิดข้อผิดพลาด ยังคงใช้ค่าเริ่มต้น
-      }
+    if (status === "authenticated") {
+      fetchBookingSlots();
     }
-    fetchCourts()
-  }, [])
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/booking')
-    }
-  }, [status, router])
-
-  // Redirect to face registration if user hasn't registered their face
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user && !session.user.faceRegistered) {
-      router.push('/face-registration')
-    }
-  }, [session, status, router])
-
-  // Generate the next 30 days for date selection
-  const generateDates = () => {
-    const dates = []
-    const today = new Date()
-    
-    for (let i = 0; i < 30; i++) {
-      dates.push(addDays(today, i))
-    }
-    
-    return dates
-  }
-
-  const handleBooking = async () => {
-    if (!session?.user?.id || !selectedCourt || !selectedDate || !selectedTime) {
-      setError('Please select court, date, and time')
-      return
-    }
-
+  }, [selectedDate, status]);
+  
+  const fetchBookingSlots = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true)
-      setError(null)
+      const formattedDate = format(selectedDate, "yyyy-MM-dd");
+      const response = await fetch(`/api/booking/slots?date=${formattedDate}`);
       
-      // Parse time slot for start and end times
-      const [startTimeStr, endTimeStr] = selectedTime.split('-')
-      const [startHour, startMinute] = startTimeStr.split(':').map(Number)
-      const [endHour, endMinute] = endTimeStr.split(':').map(Number)
-      
-      // Create Date objects for start and end times
-      const startTime = new Date(selectedDate)
-      startTime.setHours(startHour, startMinute, 0)
-      
-      const endTime = new Date(selectedDate)
-      endTime.setHours(endHour, endMinute, 0)
-      
-      // Call server action to create booking
-      const result = await createBooking({
-        userId: session.user.id,
-        courtId: selectedCourt,
-        date: selectedDate,
-        startTime,
-        endTime
-      })
-
-      if (result.success) {
-        setBookingComplete(true)
-        // Redirect to dashboard after 3 seconds
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 3000)
-      } else {
-        setError(result.error || 'Booking failed')
+      if (!response.ok) {
+        throw new Error('Failed to fetch booking slots');
       }
       
-    } catch (err: any) {
-      console.error('Booking error:', err)
-      setError(err.message || 'An error occurred during booking')
+      const data = await response.json();
+      setBookingSlots(data.slots);
+    } catch (error) {
+      console.error("Error fetching booking slots:", error);
     } finally {
-      setLoading(false)
+      setIsLoading(false);
     }
-  }
-
-  // Show loading state
-  if (status === 'loading' || status === 'unauthenticated') {
+  };
+  
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(new Date(e.target.value));
+  };
+  
+  const goPreviousDay = () => {
+    setSelectedDate(prev => subDays(prev, 1));
+  };
+  
+  const goNextDay = () => {
+    setSelectedDate(prev => addDays(prev, 1));
+  };
+  
+  const handleSlotClick = (courtId: string, startTime: string, endTime: string, courtName: string, isAvailable: boolean) => {
+    if (!isAvailable) return;
+    
+    setSelectedSlot({
+      courtId,
+      startTime,
+      endTime,
+      courtName
+    });
+    
+    setShowConfirmModal(true);
+  };
+  
+  const handleConfirmBooking = () => {
+    // Will be handled in the confirmation modal
+    setShowConfirmModal(false);
+  };
+  
+  if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-psu-blue mx-auto"></div>
-          <p className="mt-4 text-lg">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  // Generate time slots from 8:00 to 22:00
+  const timeSlots = [];
+  for (let hour = 8; hour < 22; hour++) {
+    timeSlots.push({
+      start: `${hour.toString().padStart(2, '0')}:00`,
+      end: `${hour.toString().padStart(2, '0')}:30`
+    });
+    
+    timeSlots.push({
+      start: `${hour.toString().padStart(2, '0')}:30`,
+      end: `${(hour + 1).toString().padStart(2, '0')}:00`
+    });
+  }
+  
+  // Define court names
+  const courts = [
+    { id: "1", name: "Court 1" },
+    { id: "2", name: "Court 2" },
+    { id: "3", name: "Court 3" },
+    { id: "4", name: "Court 4" }
+  ];
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl font-bold text-center text-blue-900 mb-8">BOOKING</h1>
+        
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={goPreviousDay}
+              className="p-2 border rounded-md hover:bg-gray-100"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+            
+            <input
+              type="date"
+              value={format(selectedDate, "yyyy-MM-dd")}
+              onChange={handleDateChange}
+              className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            
+            <button
+              onClick={goNextDay}
+              className="p-2 border rounded-md hover:bg-gray-100"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          
+          <select className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="badminton">Badminton</option>
+          </select>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="min-w-full">
+            {timeSlots.map((timeSlot, index) => {
+              // Find booking data for this time slot
+              const slotBookings = bookingSlots.filter(
+                slot => slot.startTime === timeSlot.start && slot.endTime === timeSlot.end
+              );
+              
+              return (
+                <div key={index} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                  <div className="flex">
+                    <div className="w-40 py-4 px-6 border-r flex items-center">
+                      <span className="font-medium">{timeSlot.start}</span>
+                      <span className="mx-2">—</span>
+                      <span className="font-medium">{timeSlot.end}</span>
+                    </div>
+                    
+                    <div className="flex-1 grid grid-cols-4">
+                      {courts.map(court => {
+                        // Check if this court is booked for this time slot
+                        const booking = slotBookings.find(slot => slot.courtId === court.id);
+                        const isAvailable = !booking;
+                        
+                        return (
+                          <div
+                            key={court.id}
+                            onClick={() => handleSlotClick(court.id, timeSlot.start, timeSlot.end, court.name, isAvailable)}
+                            className={`
+                              border-r last:border-r-0 p-4 text-center
+                              ${isAvailable 
+                                ? 'bg-blue-100 hover:bg-blue-200 cursor-pointer'
+                                : 'bg-red-100'}
+                            `}
+                          >
+                            <div className="font-medium text-blue-900 mb-1">
+                              {court.name}
+                            </div>
+                            <div className={`text-sm ${isAvailable ? 'text-blue-700' : 'text-red-700'}`}>
+                              {isAvailable ? "Available" : booking?.username}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
       
-      <main className="flex-grow py-8 px-4">
-        <div className="container mx-auto max-w-3xl">
-          {bookingComplete ? (
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <div className="bg-green-100 p-8 rounded-lg mb-6">
-                <div className="success-icon mx-auto bg-psu-green rounded-full w-20 h-20 flex items-center justify-center">
-                  <Check className="text-white h-10 w-10" />
-                </div>
-                <h2 className="text-2xl font-bold mt-4">Booking Successful!</h2>
-                <p className="mt-2">Redirecting to dashboard...</p>
-              </div>
-              <Button 
-                onClick={() => router.push('/dashboard')}
-                className="bg-psu-blue"
-              >
-                Return to Homepage
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold">Book a Court</h1>
-                <p className="text-gray-600 mt-1">Select your preferred court, date, and time</p>
-              </div>
-
-              {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-                  <span className="block sm:inline">{error}</span>
-                </div>
-              )}
-
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Select Court</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {courts.map(court => (
-                    <div 
-                      key={court.id}
-                      className={`
-                        border rounded-md p-4 cursor-pointer transition-colors
-                        ${selectedCourt === court.id ? 'border-psu-blue bg-blue-50' : 'border-gray-200 hover:border-psu-blue'}
-                      `}
-                      onClick={() => setSelectedCourt(court.id)}
-                    >
-                      <div className="font-medium">{court.name}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Select Date</h2>
-                <div className="grid grid-cols-7 gap-2">
-                  {generateDates().map((date, index) => (
-                    <div 
-                      key={index}
-                      className={`
-                        border rounded-md p-2 text-center cursor-pointer transition-colors
-                        ${selectedDate && date.toDateString() === selectedDate.toDateString() 
-                          ? 'border-psu-blue bg-blue-50' 
-                          : 'border-gray-200 hover:border-psu-blue'}
-                      `}
-                      onClick={() => setSelectedDate(date)}
-                    >
-                      <div className="text-xs text-gray-500">{format(date, 'EEE')}</div>
-                      <div className="font-medium">{format(date, 'd')}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Select Time</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {timeSlots.map((time, index) => (
-                    <div 
-                      key={index}
-                      className={`
-                        border rounded-md p-2 text-center cursor-pointer transition-colors
-                        ${selectedTime === time ? 'border-psu-blue bg-blue-50' : 'border-gray-200 hover:border-psu-blue'}
-                      `}
-                      onClick={() => setSelectedTime(time)}
-                    >
-                      {time}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Button 
-                onClick={handleBooking}
-                className="w-full bg-psu-blue hover:bg-blue-700"
-                disabled={loading || !selectedCourt || !selectedDate || !selectedTime}
-              >
-                {loading ? 'Processing...' : 'Confirm Booking'}
-              </Button>
-            </>
-          )}
-        </div>
-      </main>
-
-      <footer className="bg-gray-100 py-6 border-t border-gray-200 mt-auto">
-        <div className="container mx-auto text-center text-gray-600 text-sm">
-          &copy; {new Date().getFullYear()} Prince of Songkla University. All rights reserved.
-        </div>
-      </footer>
+      {showConfirmModal && selectedSlot && (
+        <BookingConfirmModal
+          date={selectedDate}
+          courtName={selectedSlot.courtName}
+          startTime={selectedSlot.startTime}
+          endTime={selectedSlot.endTime}
+          courtId={selectedSlot.courtId}
+          onClose={() => setShowConfirmModal(false)}
+          onConfirm={handleConfirmBooking}
+        />
+      )}
     </div>
-  )
+  );
 }

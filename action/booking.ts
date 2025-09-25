@@ -52,7 +52,7 @@ export async function createBooking(data: {
     }
     
     // Get user ID from session
-    const userId = (session.user as any).id
+    const userId = session.user?.id
     if (!userId) {
       return { success: false, message: "User ID not found in session" };
     }

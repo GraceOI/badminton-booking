@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
     // Check if user is authenticated
     if (!session?.user) {
@@ -30,9 +31,14 @@ export async function POST(req: NextRequest) {
     const bookingDate = new Date(date)
     bookingDate.setHours(0, 0, 0, 0)
 
-    // Convert string times to Date objects if needed
-    const startTimeDate = typeof startTime === 'string' ? new Date(startTime) : startTime
-    const endTimeDate = typeof endTime === 'string' ? new Date(endTime) : endTime
+    // Convert string times to Date objects
+    // For time strings like "08:00", create proper Date objects
+    const startTimeDate = typeof startTime === 'string' 
+      ? new Date(`${date}T${startTime}:00`) 
+      : startTime
+    const endTimeDate = typeof endTime === 'string' 
+      ? new Date(`${date}T${endTime}:00`) 
+      : endTime
 
     // Check if court exists
     const court = await prisma.court.findUnique({
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
     // Create booking
     const booking = await prisma.booking.create({
       data: {
-        userId: session.user.id as string,
+        userId: session.user.id,
         courtId,
         date: bookingDate,
         startTime: startTimeDate,

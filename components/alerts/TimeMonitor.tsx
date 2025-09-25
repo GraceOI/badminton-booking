@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useBookingAlerts } from './AlertSystem'
 
 interface Booking {
@@ -19,43 +19,47 @@ interface TimeMonitorProps {
 export function TimeMonitor({ bookings }: TimeMonitorProps) {
   const { showTimeWarning } = useBookingAlerts()
   const [checkedBookings, setCheckedBookings] = useState<Set<string>>(new Set())
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
+
+  const checkUpcomingBookings = useCallback(() => {
+    const now = new Date()
+    
+    bookings.forEach(booking => {
+      if (booking.status !== 'approved' && booking.status !== 'upcoming') return
+      
+      const bookingDateTime = new Date(`${booking.date}T${booking.startTime}`)
+      const timeDiff = bookingDateTime.getTime() - now.getTime()
+      const minutesUntilStart = Math.floor(timeDiff / (1000 * 60))
+      
+      // Check if booking starts soon (within 15 minutes)
+      if (minutesUntilStart <= 15 && minutesUntilStart > 0) {
+        setCheckedBookings(prev => {
+          if (!prev.has(booking.id)) {
+            showTimeWarning(booking.courtName, minutesUntilStart)
+            return new Set(prev).add(booking.id)
+          }
+          return prev
+        })
+      }
+      
+      // Check if booking is ending soon
+      const endDateTime = new Date(`${booking.date}T${booking.endTime}`)
+      const timeUntilEnd = endDateTime.getTime() - now.getTime()
+      const minutesUntilEnd = Math.floor(timeUntilEnd / (1000 * 60))
+      
+      if (minutesUntilEnd <= 10 && minutesUntilEnd > 0) {
+        const warningId = `${booking.id}-ending`
+        setCheckedBookings(prev => {
+          if (!prev.has(warningId)) {
+            showTimeWarning(`${booking.courtName} (ending)`, minutesUntilEnd)
+            return new Set(prev).add(warningId)
+          }
+          return prev
+        })
+      }
+    })
+  }, [bookings, showTimeWarning])
 
   useEffect(() => {
-    const checkUpcomingBookings = () => {
-      const now = new Date()
-      setLastUpdateTime(now)
-      
-      bookings.forEach(booking => {
-        if (booking.status !== 'approved' && booking.status !== 'upcoming') return
-        
-        const bookingDateTime = new Date(`${booking.date}T${booking.startTime}`)
-        const timeDiff = bookingDateTime.getTime() - now.getTime()
-        const minutesUntilStart = Math.floor(timeDiff / (1000 * 60))
-        
-        // Check if booking starts soon (within 15 minutes)
-        if (minutesUntilStart <= 15 && minutesUntilStart > 0) {
-          if (!checkedBookings.has(booking.id)) {
-            showTimeWarning(booking.courtName, minutesUntilStart)
-            setCheckedBookings(prev => new Set(prev).add(booking.id))
-          }
-        }
-        
-        // Check if booking is ending soon
-        const endDateTime = new Date(`${booking.date}T${booking.endTime}`)
-        const timeUntilEnd = endDateTime.getTime() - now.getTime()
-        const minutesUntilEnd = Math.floor(timeUntilEnd / (1000 * 60))
-        
-        if (minutesUntilEnd <= 10 && minutesUntilEnd > 0) {
-          const warningId = `${booking.id}-ending`
-          if (!checkedBookings.has(warningId)) {
-            showTimeWarning(`${booking.courtName} (ending)`, minutesUntilEnd)
-            setCheckedBookings(prev => new Set(prev).add(warningId))
-          }
-        }
-      })
-    }
-
     // Check every 30 seconds for more responsive updates
     const interval = setInterval(checkUpcomingBookings, 30000)
     
@@ -63,7 +67,7 @@ export function TimeMonitor({ bookings }: TimeMonitorProps) {
     checkUpcomingBookings()
 
     return () => clearInterval(interval)
-  }, [bookings, showTimeWarning, checkedBookings])
+  }, [checkUpcomingBookings])
 
   return null // This component doesn't render anything
 }

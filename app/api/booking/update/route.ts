@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
     // Check if user is authenticated
     if (!session?.user) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     const existingBooking = await prisma.booking.findFirst({
       where: {
         id: bookingId,
-        userId: session.user.id as string
+        userId: session.user.id
       }
     })
 

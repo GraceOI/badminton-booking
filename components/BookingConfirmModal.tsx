@@ -4,7 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useBookingAlerts } from "@/components/alerts/AlertSystem";
-import { createBooking } from "@/action/booking";
+// Removed server action import - using API route instead
 
 interface BookingConfirmModalProps {
   date: Date;
@@ -38,14 +38,21 @@ export default function BookingConfirmModal({
       // Format date and times for API
       const formattedDate = format(date, "yyyy-MM-dd");
       
-      // Call the server action to create a booking
-      const result = await createBooking({
-        courtId,
-        date: formattedDate,
-        startTime,
-        endTime,
-
+      // Call the API route to create a booking
+      const response = await fetch('/api/booking/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          courtId,
+          date: formattedDate,
+          startTime,
+          endTime,
+        }),
       });
+
+      const result = await response.json();
       
       if (result.success) {
         // Booking successfully created
@@ -56,7 +63,7 @@ export default function BookingConfirmModal({
           router.push("/my-bookings");
         }, 2000);
       } else {
-        const errorMessage = result.message || "Failed to create booking";
+        const errorMessage = result.error || "Failed to create booking";
         setError(errorMessage);
         showBookingError(errorMessage);
       }

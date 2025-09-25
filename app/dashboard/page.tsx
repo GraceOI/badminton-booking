@@ -27,7 +27,7 @@ interface Booking {
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { bookings, lastFetchTime } = useUpcomingBookings()
+  const { bookings } = useUpcomingBookings()
   
   const [allBookings, setAllBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,65 +38,70 @@ export default function DashboardPage() {
     cancelledBookings: 0
   })
 
-  // Redirect to login if not authenticated
+  // Handle authentication and redirects
   useEffect(() => {
+    if (status === 'loading') return // Wait for session to load
+    
     if (status === 'unauthenticated') {
-      router.push("/login");
+      router.push("/login")
+      return
     }
-  }, [status, router])
-
-  // Redirect based on user status
-  useEffect(() => {
+    
     if (status === 'authenticated' && session?.user) {
+      // Admin should go directly to admin panel
       if (session.user.isAdmin) {
         router.push('/admin')
-      } else if (!session.user.faceRegistered) {
-        router.push('/face-registration')
+        return
       }
+      
+      // Non-admin users without face registration
+      if (!session.user.faceRegistered) {
+      router.push('/face-registration')
+        return
+      }
+      
+      // Regular users - fetch their bookings
+      fetchUserBookings()
     }
-  }, [session, status, router])
+  }, [status, session, router])
 
   // Fetch user's bookings and calculate stats
-  useEffect(() => {
-    const fetchUserBookings = async () => {
-      if (status === 'authenticated' && session?.user?.id) {
-        try {
-          setLoading(true)
-          const result = await getUserBookings(session.user.id)
-          
-          if (result.success && result.bookings) {
-            const bookings = result.bookings as unknown as Booking[]
-            setAllBookings(bookings)
-            
-            // Calculate stats
-            const totalBookings = bookings.length
-            const upcomingBookings = bookings.filter(b => 
-              b.status === 'upcoming' || b.status === 'approved'
-            ).length
-            const completedBookings = bookings.filter(b => 
-              b.status === 'completed'
-            ).length
-            const cancelledBookings = bookings.filter(b => 
-              b.status === 'cancelled'
-            ).length
-            
-            setStats({
-              totalBookings,
-              upcomingBookings,
-              completedBookings,
-              cancelledBookings
-            })
-          }
-        } catch (error) {
-          console.error('Error fetching bookings:', error)
-        } finally {
-          setLoading(false)
-        }
+  const fetchUserBookings = async () => {
+    if (!session?.user?.id) return
+    
+    try {
+      setLoading(true)
+      const result = await getUserBookings(session.user.id)
+      
+      if (result.success && result.bookings) {
+        const bookings = result.bookings as unknown as Booking[]
+        setAllBookings(bookings)
+        
+        // Calculate stats
+        const totalBookings = bookings.length
+        const upcomingBookings = bookings.filter(b => 
+          b.status === 'upcoming' || b.status === 'approved'
+        ).length
+        const completedBookings = bookings.filter(b => 
+          b.status === 'completed'
+        ).length
+        const cancelledBookings = bookings.filter(b => 
+          b.status === 'cancelled'
+        ).length
+        
+        setStats({
+          totalBookings,
+          upcomingBookings,
+          completedBookings,
+          cancelledBookings
+        })
       }
+    } catch (error) {
+      console.error('Error fetching bookings:', error)
+    } finally {
+      setLoading(false)
     }
-
-    fetchUserBookings()
-  }, [session, status])
+  }
 
   // Show loading state
   if (status === 'loading' || status === 'unauthenticated') {
@@ -110,26 +115,29 @@ export default function DashboardPage() {
     )
   }
 
+  // Don't render anything for admin users (they should be redirected)
+  if (session?.user?.isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-psu-blue mx-auto"></div>
+          <p className="mt-4 text-lg">Redirecting to admin panel...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      <TimeMonitor bookings={bookings} />
+      {!session?.user?.isAdmin && <TimeMonitor bookings={bookings} />}
       
       <main className="flex-grow py-8 px-4">
         <div className="container mx-auto max-w-7xl">
           {/* Welcome Section */}
           <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900">Welcome back, {session?.user?.name}!</h1>
-                <p className="text-gray-600 mt-2 text-lg">Manage your PSU badminton court bookings</p>
-              </div>
-              {lastFetchTime && (
-                <div className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-lg">
-                  Last updated: {lastFetchTime.toLocaleTimeString()}
-                </div>
-              )}
-            </div>
+            <h1 className="text-4xl font-bold text-gray-900">Welcome back, {session?.user?.name}!</h1>
+            <p className="text-gray-600 mt-2 text-lg">Manage your PSU badminton court bookings</p>
           </div>
 
           {/* Stats Cards */}
@@ -174,7 +182,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-
+          
           {/* Quick Actions */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow">

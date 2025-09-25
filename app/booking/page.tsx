@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { format, addDays, subDays } from "date-fns";
-import Navbar from "@/components/AdminNavbar";
+import Navbar from "@/components/UserNavbar";
 import { BookingSlot } from "@/types/booking";
 import BookingConfirmModal from "@/components/BookingConfirmModal";
 

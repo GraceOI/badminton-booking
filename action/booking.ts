@@ -2,7 +2,7 @@
 
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/auth";
+import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function createBooking(data: {
@@ -21,13 +21,15 @@ export async function createBooking(data: {
     // Convert date and time strings to Date objects
     const bookingDate = new Date(data.date);
     
-    // Get the time slot
-    const timeSlot = await prisma.timeSlot.findFirst({
-      where: {
-        startTime: data.startTime,
-        endTime: data.endTime,
-      },
-    });
+    // Resolve time slot by matching HH:MM strings against stored DateTimes
+    const allTimeSlots = await prisma.timeSlot.findMany();
+    const toHHMM = (d: Date) => {
+      const dt = new Date(d as any);
+      const h = String(dt.getHours()).padStart(2, '0');
+      const m = String(dt.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    };
+    const timeSlot = allTimeSlots.find(ts => toHHMM(ts.startTime as any) === data.startTime && toHHMM(ts.endTime as any) === data.endTime);
     
     if (!timeSlot) {
       return { success: false, message: "Invalid time slot" };
@@ -49,22 +51,28 @@ export async function createBooking(data: {
       return { success: false, message: "This court is already booked for the selected time" };
     }
     
+    // Get user ID from session
+    const userId = (session.user as any).id
+    if (!userId) {
+      return { success: false, message: "User ID not found in session" };
+    }
+
     // Create the booking
     const booking = await prisma.booking.create({
       data: {
-        userId: session.user.id,
+        userId: userId,
         courtId: data.courtId,
         timeSlotId: timeSlot.id,
         date: bookingDate,
-        startTime: timeSlot.startTime, // 👈 เพิ่ม
+        startTime: timeSlot.startTime,
         endTime: timeSlot.endTime, 
-        status: "upcoming",
+        status: "approved",
       },
     });
     
     // Revalidate booking paths
     revalidatePath("/booking");
-    revalidatePath("/bookings");
+    revalidatePath("/my-bookings");
     
     return { success: true, booking };
   } catch (error) {

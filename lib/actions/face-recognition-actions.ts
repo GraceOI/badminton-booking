@@ -5,10 +5,10 @@ import prisma from '@/lib/db'
 
 // This would typically use DeepFace or face_recognition libraries
 // For this implementation, we'll simulate the face recognition process
-export async function registerFace(userId: string, imageData: string) {
+export async function registerFace(userIdentifier: string, imageData: string) {
   try {
     // Validate inputs
-    if (!userId || !imageData) {
+    if (!userIdentifier || !imageData) {
       return { success: false, error: 'Missing required data' }
     }
 
@@ -23,9 +23,9 @@ export async function registerFace(userId: string, imageData: string) {
       encoding: Array.from({ length: 128 }, () => Math.random())
     }))
 
-    // Check if user exists
+    // Check if user exists by id
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userIdentifier },
       include: { faceData: true }
     })
 
@@ -46,7 +46,7 @@ export async function registerFace(userId: string, imageData: string) {
     } else {
       await prisma.faceData.create({
         data: {
-          userId,
+          userId: user.id,
           faceImage: buffer,
           faceData: mockFaceEncoding
         }
@@ -55,7 +55,7 @@ export async function registerFace(userId: string, imageData: string) {
 
     // Update user's face registration status
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: { faceRegistered: true }
     })
 

@@ -5,6 +5,18 @@ import prisma from '@/lib/db'
 
 export async function GET() {
   try {
+    // Ensure at least 2 courts exist
+    const count = await prisma.court.count()
+    if (count === 0) {
+      await prisma.court.createMany({
+        data: [
+          { name: 'Court 1' },
+          { name: 'Court 2' }
+        ],
+        skipDuplicates: true
+      })
+    }
+
     // Fetch all courts from database
     const courts = await prisma.court.findMany({
       select: {

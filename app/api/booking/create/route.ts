@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         date: bookingDate,
         startTime: startTimeDate,
         endTime: endTimeDate,
-        status: 'upcoming',
+        status: 'approved',
         bookingDate: new Date()
       }
     })

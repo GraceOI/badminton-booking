@@ -1,6 +1,7 @@
 'use client'
 
 import { SessionProvider } from 'next-auth/react'
+import { AlertProvider } from '@/components/alerts/AlertSystem'
 
 type ProvidersProps = {
   children: React.ReactNode
@@ -10,7 +11,9 @@ type ProvidersProps = {
 export function Providers({ children, session }: ProvidersProps) {
   return (
     <SessionProvider session={session}>
-      {children}
+      <AlertProvider>
+        {children}
+      </AlertProvider>
     </SessionProvider>
   )
 }

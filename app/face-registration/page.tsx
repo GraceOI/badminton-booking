@@ -54,19 +54,31 @@ export default function FaceRegistrationPage() {
         throw new Error('Failed to capture image')
       }
 
-      if (!session?.user?.id) {
+      if (!session?.user) {
         throw new Error('User not authenticated')
       }
 
+      // Debug: Log session data
+      console.log('Session data:', session)
+      console.log('User data:', session.user)
+
+      // Get user identifier from session
+      const userIdentifier = session.user.id
+      console.log('User identifier:', userIdentifier)
+      
+      if (!userIdentifier) {
+        throw new Error('User identifier not found in session')
+      }
+
       // Call server action to register face
-      const result = await registerFace(session.user.id, imageSrc)
+      const result = await registerFace(userIdentifier, imageSrc)
 
       if (result.success) {
         setRegistrationComplete(true)
-        // Redirect to dashboard after 3 seconds
+        // Redirect to dashboard after 2 seconds
         setTimeout(() => {
-          router.push('/dashboard')
-        }, 3000)
+          window.location.href = '/dashboard'
+        }, 2000)
       } else {
         setError(result.error || 'Face registration failed')
       }

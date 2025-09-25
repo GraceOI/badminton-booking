@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import { useBookingAlerts } from "@/components/alerts/AlertSystem";
 import { createBooking } from "@/action/booking";
 
 interface BookingConfirmModalProps {
@@ -27,6 +28,7 @@ export default function BookingConfirmModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { showBookingSuccess, showBookingError } = useBookingAlerts();
   
   const handleConfirm = async () => {
     try {
@@ -47,12 +49,15 @@ export default function BookingConfirmModal({
       if (result.success) {
         // Booking successfully created
         onConfirm();
-        // Show success message and redirect
+        // Show success alert
+        showBookingSuccess(courtName, format(date, "PPP"), `${startTime} - ${endTime}`);
         setTimeout(() => {
-          router.push("/bookings");
-        }, 1500);
+          router.push("/my-bookings");
+        }, 2000);
       } else {
-        setError(result.message || "Failed to create booking");
+        const errorMessage = result.message || "Failed to create booking";
+        setError(errorMessage);
+        showBookingError(errorMessage);
       }
     } catch (error: any) {
       console.error("Error creating booking:", error);

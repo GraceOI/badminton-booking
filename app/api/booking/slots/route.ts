@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-// import { prisma } from "@/lib/auth";
+import prisma from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -27,18 +27,40 @@ export async function GET(request: Request) {
     const date = new Date(dateParam);
     
     // Get all time slots
-    const timeSlots = await prisma.timeSlot.findMany({
+    // Ensure timeslots exist (30-minute slots 08:00-22:00)
+    let timeSlots = await prisma.timeSlot.findMany({
       orderBy: {
         startTime: "asc",
       },
     });
+    if (timeSlots.length === 0) {
+      const baseDate = new Date();
+      baseDate.setHours(0, 0, 0, 0);
+      const toDateTime = (h: number, m: number) => {
+        const d = new Date(baseDate);
+        d.setHours(h, m, 0, 0);
+        return d;
+      };
+      const createData: { startTime: Date; endTime: Date }[] = [];
+      for (let hour = 8; hour < 22; hour++) {
+        createData.push({ startTime: toDateTime(hour, 0), endTime: toDateTime(hour, 30) });
+        createData.push({ startTime: toDateTime(hour, 30), endTime: toDateTime(hour + 1, 0) });
+      }
+      await prisma.timeSlot.createMany({ data: createData });
+      timeSlots = await prisma.timeSlot.findMany({ orderBy: { startTime: "asc" } });
+    }
     
     // Get all bookings for the selected date
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const bookings = await prisma.booking.findMany({
       where: {
         date: {
-          gte: new Date(date.setHours(0, 0, 0, 0)),
-          lt: new Date(date.setHours(23, 59, 59, 999)),
+          gte: startOfDay,
+          lt: endOfDay,
         },
         status: {
           not: "cancelled",
@@ -56,46 +78,49 @@ export async function GET(request: Request) {
     });
     
     // Create available slot data for the frontend
-    const slots = [];
-    
+    const slots: Array<{
+      courtId: string;
+      courtName: string;
+      startTime: string;
+      endTime: string;
+      isAvailable: boolean;
+      username: string | null;
+      bookingId: string | null;
+    }> = [];
+
+    // Ensure 2 courts
+    const courts = await prisma.court.findMany({ orderBy: { name: "asc" } });
+
+    const toHHMM = (d: Date) => {
+      const date = new Date(d as any);
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    };
+
+    // Generate slots for all courts and time slots, checking actual bookings
     for (const timeSlot of timeSlots) {
-      // Find bookings for this time slot
-      const slotBookings = bookings.filter(
-        (        booking: { timeSlotId: any; }) => booking.timeSlotId === timeSlot.id
-      );
-      
-      // Add booked slots
-      for (const booking of slotBookings) {
-        slots.push({
-          courtId: booking.courtId,
-          courtName: booking.court.name,
-          startTime: timeSlot.startTime,
-          endTime: timeSlot.endTime,
-          isAvailable: false,
-          username: booking.user.name,
-          bookingId: booking.id,
-        });
-      }
-      
-      // Add available slots (courts that don't have a booking for this time slot)
-      const courts = await prisma.court.findMany();
+      const startStr = toHHMM(timeSlot.startTime as any);
+      const endStr = toHHMM(timeSlot.endTime as any);
       
       for (const court of courts) {
-        const isBooked = slotBookings.some(
-          (          booking: { courtId: any; }) => booking.courtId === court.id
+        // Check if this court and time slot is booked
+        const existingBooking = bookings.find(booking => 
+          booking.courtId === court.id &&
+          booking.timeSlot &&
+          toHHMM(booking.timeSlot.startTime as any) === startStr &&
+          toHHMM(booking.timeSlot.endTime as any) === endStr
         );
         
-        if (!isBooked) {
-          slots.push({
-            courtId: court.id,
-            courtName: court.name,
-            startTime: timeSlot.startTime,
-            endTime: timeSlot.endTime,
-            isAvailable: true,
-            username: null,
-            bookingId: null,
-          });
-        }
+        slots.push({
+          courtId: court.id,
+          courtName: court.name,
+          startTime: startStr,
+          endTime: endStr,
+          isAvailable: !existingBooking,
+          username: existingBooking ? existingBooking.user.name : null,
+          bookingId: existingBooking ? existingBooking.id : null,
+        });
       }
     }
     

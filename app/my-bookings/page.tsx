@@ -96,7 +96,7 @@ export default function MyBookingsPage() {
   // Filter bookings based on active tab
   const filteredBookings = bookings.filter(booking => {
     if (activeTab === 'upcoming') {
-      return booking.status === 'upcoming'
+      return booking.status === 'upcoming' || booking.status === 'approved'
     } else if (activeTab === 'completed') {
       return booking.status === 'completed'
     } else if (activeTab === 'cancelled') {
@@ -216,7 +216,7 @@ export default function MyBookingsPage() {
                         <div>
                           <span
                             className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                              booking.status === 'upcoming'
+                              booking.status === 'upcoming' || booking.status === 'approved'
                                 ? 'bg-blue-100 text-blue-800'
                                 : booking.status === 'completed'
                                 ? 'bg-green-100 text-green-800'
@@ -232,7 +232,7 @@ export default function MyBookingsPage() {
                         Booked on: {formatDate(new Date(booking.bookingDate))}
                       </div>
                       
-                      {booking.status === 'upcoming' && (
+                      {(booking.status === 'upcoming' || booking.status === 'approved') && (
                         <div className="mt-3 flex justify-end">
                           <Button
                             variant="destructive"

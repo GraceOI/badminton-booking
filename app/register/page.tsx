@@ -115,6 +115,10 @@ export default function RegisterPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                inputMode="text"
+                maxLength={128}
+                spellCheck={false}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-psu-blue focus:border-psu-blue"
                 placeholder="Create a password"
               />
@@ -131,6 +135,10 @@ export default function RegisterPage() {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                inputMode="text"
+                maxLength={128}
+                spellCheck={false}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-psu-blue focus:border-psu-blue"
                 placeholder="Confirm your password"
               />

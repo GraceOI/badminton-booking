@@ -7,22 +7,28 @@ import Header from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { Calendar, BookOpen } from 'lucide-react'
 import Link from 'next/link'
+import { TimeMonitor, useUpcomingBookings } from '@/components/alerts/TimeMonitor'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { bookings } = useUpcomingBookings()
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push("/dashboard");
+      router.push("/login");
     }
   }, [status, router])
 
-  // Redirect to face registration if user hasn't registered their face
+  // Redirect based on user status
   useEffect(() => {
-    if (status === 'authenticated' && session?.user && !session.user.faceRegistered) {
-      router.push('/face-registration')
+    if (status === 'authenticated' && session?.user) {
+      if (session.user.isAdmin) {
+        router.push('/admin')
+      } else if (!session.user.faceRegistered) {
+        router.push('/face-registration')
+      }
     }
   }, [session, status, router])
 
@@ -41,6 +47,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
+      <TimeMonitor bookings={bookings} />
       
       <main className="flex-grow py-8 px-4">
         <div className="container mx-auto max-w-5xl">

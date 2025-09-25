@@ -47,17 +47,9 @@ export default function LoginPage() {
         return
       }
 
-      // Check if user is admin
-      const response = await fetch('/api/auth/check-admin')
-      const data = await response.json()
-      
-      if (data.isAdmin) {
-        router.push('/admin')
-      } else if (!data.faceRegistered) {
-        router.push('/face-registration')
-      } else {
-        router.push('/dashboard')
-      }
+      // Redirect based on user type after successful login
+      // Reload page to get fresh session data
+      window.location.href = '/dashboard'
     } catch (err: any) {
       console.error('Login error:', err)
       setError('An error occurred during login')
@@ -118,6 +110,10 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                inputMode="text"
+                maxLength={128}
+                spellCheck={false}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-psu-blue focus:border-psu-blue"
                 placeholder="Enter your password"
               />
@@ -134,12 +130,32 @@ export default function LoginPage() {
             </div>
           </form>
 
+          <div className="my-4 flex items-center">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="px-3 text-xs text-gray-400">OR</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            >
+              Continue with Google
+            </Button>
+          </div>
+
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link href="/register" className="text-psu-blue hover:underline">
                 Register
               </Link>
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Admin access requires specific PSU credentials
             </p>
           </div>
         </div>

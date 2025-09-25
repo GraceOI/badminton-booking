@@ -4,25 +4,15 @@ async function seedCourts() {
   try {
     // Create courts
     const courts = await Promise.all([
-      prisma.court.create({
-        data: {
-          name: 'Court 1'
-        }
+      prisma.court.upsert({
+        where: { name: 'Court 1' },
+        update: {},
+        create: { name: 'Court 1' }
       }),
-      prisma.court.create({
-        data: {
-          name: 'Court 2'
-        }
-      }),
-      prisma.court.create({
-        data: {
-          name: 'Court 3'
-        }
-      }),
-      prisma.court.create({
-        data: {
-          name: 'Court 4'
-        }
+      prisma.court.upsert({
+        where: { name: 'Court 2' },
+        update: {},
+        create: { name: 'Court 2' }
       })
     ])
 

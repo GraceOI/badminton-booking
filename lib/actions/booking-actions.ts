@@ -46,7 +46,7 @@ export async function createBooking(data: BookingData) {
         date: bookingDate,
         startTime: data.startTime,
         endTime: data.endTime,
-        status: 'upcoming',
+        status: 'approved',
         bookingDate: new Date()
       }
     })

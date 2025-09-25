@@ -7,6 +7,9 @@ import { format, addDays, subDays } from 'date-fns'
 import Navbar from '@/components/UserNavbar'
 import { BookingSlot, Court } from '@/types/booking'
 import BookingConfirmModal from '@/components/BookingConfirmModal'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 export default function BookingPage() {
   const { data: session, status } = useSession()
@@ -129,7 +132,14 @@ export default function BookingPage() {
       <Navbar />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-center text-blue-900 mb-8">BOOKING</h1>
+        <div className="mb-6 flex items-center">
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm" className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold text-blue-900">BOOKING</h1>
+        </div>
         
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
           <div className="flex items-center space-x-2">

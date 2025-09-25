@@ -44,6 +44,7 @@ export default function BookingConfirmModal({
         date: formattedDate,
         startTime,
         endTime,
+
       });
       
       if (result.success) {

@@ -19,10 +19,12 @@ interface TimeMonitorProps {
 export function TimeMonitor({ bookings }: TimeMonitorProps) {
   const { showTimeWarning } = useBookingAlerts()
   const [checkedBookings, setCheckedBookings] = useState<Set<string>>(new Set())
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
 
   useEffect(() => {
     const checkUpcomingBookings = () => {
       const now = new Date()
+      setLastUpdateTime(now)
       
       bookings.forEach(booking => {
         if (booking.status !== 'approved' && booking.status !== 'upcoming') return
@@ -54,8 +56,8 @@ export function TimeMonitor({ bookings }: TimeMonitorProps) {
       })
     }
 
-    // Check every minute
-    const interval = setInterval(checkUpcomingBookings, 60000)
+    // Check every 30 seconds for more responsive updates
+    const interval = setInterval(checkUpcomingBookings, 30000)
     
     // Initial check
     checkUpcomingBookings()
@@ -70,14 +72,21 @@ export function TimeMonitor({ bookings }: TimeMonitorProps) {
 export function useUpcomingBookings() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const [lastFetchTime, setLastFetchTime] = useState<Date>(new Date())
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await fetch('/api/user/bookings')
+        const response = await fetch('/api/user/bookings', {
+          cache: 'no-store', // Ensure fresh data
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
         if (response.ok) {
           const data = await response.json()
           setBookings(data)
+          setLastFetchTime(new Date())
         }
       } catch (error) {
         console.error('Error fetching bookings:', error)
@@ -88,11 +97,11 @@ export function useUpcomingBookings() {
 
     fetchBookings()
     
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchBookings, 300000)
+    // Refresh every 2 minutes for more real-time updates
+    const interval = setInterval(fetchBookings, 120000)
     
     return () => clearInterval(interval)
   }, [])
 
-  return { bookings, loading }
+  return { bookings, loading, lastFetchTime }
 }

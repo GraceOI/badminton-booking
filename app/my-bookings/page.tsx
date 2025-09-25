@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { getUserBookings, cancelBooking } from '@/lib/actions/booking-actions'
-import { ArrowLeft, Clock, Calendar, MapPin } from 'lucide-react'
+import { ArrowLeft, Clock, Calendar, MapPin, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatTime } from '@/lib/utils'
 
@@ -124,13 +124,20 @@ export default function MyBookingsPage() {
       
       <main className="flex-grow py-8 px-4">
         <div className="container mx-auto max-w-3xl">
-          <div className="mb-6 flex items-center">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm" className="mr-4">
-                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center">
+              <Link href="/dashboard">
+                <Button variant="outline" size="sm" className="mr-4">
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+                </Button>
+              </Link>
+              <h1 className="text-2xl font-bold">My Bookings</h1>
+            </div>
+            <Link href="/booking">
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-1" /> New Booking
               </Button>
             </Link>
-            <h1 className="text-2xl font-bold">My Bookings</h1>
           </div>
 
           {error && (

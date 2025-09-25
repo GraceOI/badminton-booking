@@ -39,20 +39,25 @@ export default function BookingConfirmModal({
       const formattedDate = format(date, "yyyy-MM-dd");
       
       // Call the API route to create a booking
+      const requestData = {
+        courtId,
+        date: formattedDate,
+        startTime,
+        endTime,
+      };
+      
+      console.log('Modal - Sending booking request:', requestData);
+      
       const response = await fetch('/api/booking/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          courtId,
-          date: formattedDate,
-          startTime,
-          endTime,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       const result = await response.json();
+      console.log('Modal - API response:', result);
       
       if (result.success) {
         // Booking successfully created

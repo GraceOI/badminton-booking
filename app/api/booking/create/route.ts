@@ -18,6 +18,11 @@ export async function POST(req: NextRequest) {
     // Get booking data from request
     const data = await req.json()
     const { courtId, date, startTime, endTime } = data
+    
+    console.log('=== BOOKING CREATE API DEBUG ===')
+    console.log('Session user:', session.user)
+    console.log('Request data:', data)
+    console.log('Parsed data:', { courtId, date, startTime, endTime })
 
     // Validate input
     if (!courtId || !date || !startTime || !endTime) {
@@ -52,16 +57,43 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check for existing bookings
+    // Find the time slot
+    const timeSlot = await prisma.timeSlot.findFirst({
+      where: {
+        startTime: startTimeDate,
+        endTime: endTimeDate,
+      }
+    })
+
+    if (!timeSlot) {
+      return NextResponse.json(
+        { error: 'Time slot not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check for existing bookings using the unique constraint fields (exclude cancelled)
     const existingBooking = await prisma.booking.findFirst({
       where: {
         courtId,
         date: bookingDate,
         startTime: startTimeDate,
+        status: {
+          not: "cancelled"
+        }
       }
     })
 
+    console.log('Checking for existing bookings with criteria:', {
+      courtId,
+      date: bookingDate,
+      startTime: startTimeDate,
+      statusNotCancelled: true
+    })
+    console.log('Found existing booking:', existingBooking)
+
     if (existingBooking) {
+      console.log('Booking already exists:', existingBooking)
       return NextResponse.json(
         { error: 'This court is already booked for the selected time' },
         { status: 409 }
@@ -69,19 +101,48 @@ export async function POST(req: NextRequest) {
     }
 
     // Create booking
-    const booking = await prisma.booking.create({
-      data: {
-        userId: session.user.id,
-        courtId,
-        date: bookingDate,
-        startTime: startTimeDate,
-        endTime: endTimeDate,
-        status: 'approved',
-        bookingDate: new Date()
-      }
+    console.log('Creating booking with data:', {
+      userId: session.user.id,
+      courtId,
+      timeSlotId: timeSlot.id,
+      date: bookingDate,
+      startTime: startTimeDate,
+      endTime: endTimeDate,
+      status: 'approved',
+      bookingDate: new Date()
     })
+    
+    try {
+      const booking = await prisma.booking.create({
+        data: {
+          userId: session.user.id,
+          courtId,
+          timeSlotId: timeSlot.id,
+          date: bookingDate,
+          startTime: startTimeDate,
+          endTime: endTimeDate,
+          status: 'approved',
+          bookingDate: new Date()
+        }
+      })
 
-    return NextResponse.json({ success: true, booking })
+      console.log('Booking created successfully:', booking)
+      console.log('=== BOOKING CREATE API DEBUG END ===')
+
+      return NextResponse.json({ success: true, booking })
+    } catch (createError: any) {
+      console.error('Booking creation failed:', createError)
+      
+      // Handle unique constraint violation
+      if (createError.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'This court is already booked for the selected time' },
+          { status: 409 }
+        )
+      }
+      
+      throw createError
+    }
   } catch (error: any) {
     console.error('Create booking error:', error)
     return NextResponse.json(

@@ -103,6 +103,8 @@ export default function BookingPage() {
   
   const handleConfirmBooking = () => {
     setShowConfirmModal(false)
+    // Refresh booking slots after successful booking
+    fetchBookingSlots()
   }
   
   if (status === 'loading' || isLoading) {
